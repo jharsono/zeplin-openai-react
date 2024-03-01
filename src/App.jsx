@@ -5,6 +5,7 @@ import './App.css';
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const ZEPLIN_API_KEY = import.meta.env.VITE_ZEPLIN_API_KEY;
+const ZEPLIN_PROJECT_ID = import.meta.env.VITE_ZEPLIN_PROJECT_ID;
 
 const openaiclient = new OpenAI({ apiKey: OPENAI_API_KEY, dangerouslyAllowBrowser: true });
 const zeplin = new ZeplinApi(new Configuration({ accessToken: ZEPLIN_API_KEY }));
@@ -17,9 +18,46 @@ function App() {
     const { data } = await zeplin.projects.getProject(projectId);
     return data;
   }
+  async function getProjectScreenIds({ projectId }) {
+    const { data } = await zeplin.screens.getProjectScreens(projectId);
+    console.log('screens: ', data);
+    return data.map((screen) => {
+      const { id, name } = screen;
+      return (
+        {
+          id,
+          name,
+        }
+      );
+    });
+  }
+
+  const extractLayerContents = (array) => {
+    let contents = [];
+    array.forEach((obj) => {
+      if (obj.layers) {
+        // Recursively traverse nested layers
+        contents = contents.concat(extractLayerContents(obj.layers));
+      }
+      if (obj.content) {
+        contents.push(obj.content);
+      }
+    });
+    return contents;
+  };
+
+  async function getLatestScreenVersionContents({ projectId, screenId }) {
+    const { data } = await zeplin.screens.getLatestScreenVersion(projectId, screenId);
+    console.log('screen: ', data);
+    const { layers } = data;
+
+    return extractLayerContents(layers);
+  }
 
   const internalFunctions = {
     getProject,
+    getProjectScreenIds,
+    getLatestScreenVersionContents,
   };
 
   const functions = [
@@ -40,13 +78,51 @@ function App() {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'getProjectScreenIds',
+        description: 'Gets the project screen IDs in Zeplin',
+        parameters: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'string',
+              description: 'The id of the project in mongodb object id format e.g. 65ddec7fe6d474b19d2bc5f1',
+            },
+          },
+          required: ['projectId'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getLatestScreenVersionContents',
+        description: 'Gets the text contents of the most recent screen version of a given screen in Zeplin',
+        parameters: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'string',
+              description: 'The id of the project in mongodb object id format e.g. 65ddec7fe6d474b19d2bc5f1',
+            },
+            screenId: {
+              type: 'string',
+              description: 'The id of the screen in mongodb object id format e.g. 65ddec7fe6d474b19d2bc5f1',
+            },
+          },
+          required: ['projectId', 'screenId'],
+        },
+      },
+    },
   ];
 
   async function callOpenAIAPI() {
     console.log('Calling the OpenAI API');
     const messages = [];
     messages.push({ role: 'system', content: "Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous." });
-    messages.push({ role: 'user', content: prompt });
+    messages.push({ role: 'user', content: `${prompt} The project ID is ${ZEPLIN_PROJECT_ID}` });
 
     const response = await openaiclient.chat.completions.create({
       messages,
@@ -54,7 +130,7 @@ function App() {
       tool_choice: 'auto',
       model: 'gpt-4',
       temperature: 0.1,
-      max_tokens: 50,
+      max_tokens: 500,
     });
     if (response.choices[0].finish_reason === 'tool_calls') {
       const functionName = response.choices[0].message.tool_calls[0].function.name;
@@ -68,7 +144,7 @@ function App() {
         tool_choice: 'auto',
         model: 'gpt-4',
         temperature: 0.1,
-        max_tokens: 50,
+        max_tokens: 500,
       });
       setChatbotResponse(response2.choices[0].message.content);
       console.log('response2: ', response2.choices[0].message.content);
