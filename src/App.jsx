@@ -18,8 +18,15 @@ function App() {
     const { data } = await zeplin.projects.getProject(projectId);
     return data;
   }
-  async function getProjectScreenIds({ projectId }) {
-    const { data } = await zeplin.screens.getProjectScreens(projectId);
+
+  // TODO: call this recursively until there are no results to ensure you get all screens
+  async function getProjectScreenIds({
+    projectId, offset, limit, sort,
+  }) {
+    const { data } = await zeplin.screens.getProjectScreens(
+      projectId,
+      { offset, limit: 100, sort },
+    );
     console.log('screens: ', data);
     return data.map((screen) => {
       const { id, name } = screen;
@@ -81,7 +88,7 @@ function App() {
       type: 'function',
       function: {
         name: 'getProject',
-        description: 'Gets the project in Zeplin',
+        description: 'Gets the project in Zeplin.',
         parameters: {
           type: 'object',
           properties: {
@@ -98,13 +105,25 @@ function App() {
       type: 'function',
       function: {
         name: 'getProjectScreenIds',
-        description: 'Gets the project screen IDs in Zeplin',
+        description: 'Gets the project screen IDs in Zeplin. Function takes optional parameters for pagination offset and limit. The function should be called recursively until result length is 0.',
         parameters: {
           type: 'object',
           properties: {
             projectId: {
               type: 'string',
               description: 'The id of the project in mongodb object id format e.g. 65ddec7fe6d474b19d2bc5f1',
+            },
+            offset: {
+              type: 'integer',
+              description: 'Pagination offset',
+            },
+            limit: {
+              type: 'integer',
+              description: 'Pagination limit, default is 30',
+            },
+            sort: {
+              type: 'string',
+              description: 'Options are "created" or "section." "Created" is the default.',
             },
           },
           required: ['projectId'],
@@ -162,8 +181,8 @@ function App() {
       tools: functions,
       tool_choice: 'auto',
       model: 'gpt-4',
-      temperature: 0.1,
-      max_tokens: 500,
+      temperature: 0.2,
+      max_tokens: 100,
     });
     if (response.choices[0].finish_reason === 'tool_calls') {
       const functionName = response.choices[0].message.tool_calls[0].function.name;
@@ -176,8 +195,8 @@ function App() {
         tools: functions,
         tool_choice: 'auto',
         model: 'gpt-4',
-        temperature: 0.1,
-        max_tokens: 500,
+        temperature: 0.2,
+        max_tokens: 100,
       });
       setChatbotResponse(response2.choices[0].message.content);
       console.log('response2: ', response2.choices[0].message.content);
