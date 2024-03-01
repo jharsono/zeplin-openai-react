@@ -18,17 +18,23 @@ function App() {
   const zeplin = new ZeplinApi(new Configuration({ accessToken: ZEPLIN_API_KEY }));
 
   useEffect(() => {
-    const parseAndResolveSpec = async () => {
+    const fetchApiSpec = async () => {
       try {
         const specFilePath = '/zeplin-oas.yaml';
         const api = await SwaggerParser.validate(specFilePath);
-        setApiSpec(api);
+
+        const relevantInfo = {
+          info: api.info,
+          paths: Object.keys(api.paths),
+          components: api.components ? Object.keys(api.components) : [],
+        };
+        setApiSpec(relevantInfo);
       } catch (error) {
         console.error('Error parsing/resolving OpenAPI spec:', error);
       }
     };
 
-    parseAndResolveSpec();
+    fetchApiSpec();
   }, []);
 
   async function getProject({ projectId }) {
@@ -170,9 +176,10 @@ function App() {
 
   async function callOpenAIAPI() {
     console.log('Calling the OpenAI API');
+
     const messages = [];
     messages.push({ role: 'system', content: "Don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous. Use the parsed OAS from the apiSpec variable" });
-    messages.push({ role: 'user', content: `${prompt} The project ID is ${ZEPLIN_PROJECT_ID}. The OpenAPI spec includes: ${stringify(apiSpec)}` });
+    messages.push({ role: 'user', content: `${prompt} The project ID is ${ZEPLIN_PROJECT_ID}. Relevant information from the OpenAPI spec includes: ${stringify(apiSpec)}` });
 
     try {
       const response = await openaiclient.chat.completions.create({
