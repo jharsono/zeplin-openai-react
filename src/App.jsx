@@ -54,10 +54,26 @@ function App() {
     return extractLayerContents(layers);
   }
 
+  async function getProjectTextContents({ projectId }) {
+    const screens = await getProjectScreenIds({ projectId });
+    console.log('getProjectTextContents', screens);
+    const textContents = screens.map((screen) => {
+      const { id: screenId } = screen;
+      return getLatestScreenVersionContents({ projectId, screenId });
+    });
+    const textResults = await Promise.all(textContents);
+    const combinedTextContents = textResults.reduce((acc, textData) => {
+      acc.push(textData);
+      return acc;
+    }, []);
+    return combinedTextContents;
+  }
+
   const internalFunctions = {
     getProject,
     getProjectScreenIds,
     getLatestScreenVersionContents,
+    getProjectTextContents,
   };
 
   const functions = [
@@ -113,6 +129,23 @@ function App() {
             },
           },
           required: ['projectId', 'screenId'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getProjectTextContents',
+        description: 'Iterates through function getLatestScreenVersionContents to combine all text contents in project',
+        parameters: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'string',
+              description: 'The id of the project in mongodb object id format e.g. 65ddec7fe6d474b19d2bc5f1',
+            },
+          },
+          required: ['projectId'],
         },
       },
     },
