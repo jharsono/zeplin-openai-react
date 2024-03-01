@@ -9,7 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
     "@zeplin/sdk": "^1.18.0",
+    "flatted": "^3.3.1",
     "openai": "^4.28.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
