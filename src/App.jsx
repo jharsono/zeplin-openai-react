@@ -1,30 +1,23 @@
 import { React, useState } from 'react';
 import OpenAI from 'openai';
+import { ZeplinApi, Configuration } from '@zeplin/sdk';
 import './App.css';
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const ZEPLIN_API_KEY = import.meta.env.VITE_ZEPLIN_API_KEY;
 
 const openaiclient = new OpenAI({ apiKey: OPENAI_API_KEY, dangerouslyAllowBrowser: true });
+const zeplin = new ZeplinApi(new Configuration({ accessToken: ZEPLIN_API_KEY }));
 
 function App() {
   const [prompt, setPrompt] = useState('');
   const [chatbotResponse, setChatbotResponse] = useState('');
 
-  const zeplinBaseUrl = 'https://api.zeplin.dev';
-
   async function getProject({ projectId }) {
-    const url = `${zeplinBaseUrl}/v1/projects/${projectId}/`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${ZEPLIN_API_KEY}`,
-      },
-    });
-
-    const data = await response.json();
+    const { data } = await zeplin.projects.getProject(projectId);
     return data;
   }
+
   const internalFunctions = {
     getProject,
   };
