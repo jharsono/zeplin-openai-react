@@ -199,7 +199,8 @@ function App() {
         max_tokens: 100,
       });
       setChatbotResponse(response2.choices[0].message.content);
-      console.log('response2: ', response2.choices[0].message.content);
+      console.log('response2: ', response2);
+      console.log('token usage: ', response2.usage);
     } else {
       // If the response is a message, return the message
       console.log('response1: ', response.choices[0].message);
